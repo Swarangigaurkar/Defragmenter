@@ -1,5 +1,4 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/FDES37vl)
-# Project 4: A Defragmenter
+# Project: A Defragmenter
 
 ## 1. Introduction
 
@@ -7,7 +6,7 @@ The old Unix file system can get decreasing performance because of fragmentation
 
 ### Disk structure ###
 
-You will be given a disk image containing a file system, and it will be correct, i.e., no corruption. Two major data structures that are used to manage this disk are related to the defragmenter: the *superblock* and the *inode*. The superblock structure is given as follows:
+Given a disk image containing a file system with no corruption. Two major data structures that are used to manage this disk are related to the defragmenter: the *superblock* and the *inode*. The superblock structure is given as follows:
 ```c
   struct superblock {
     int blocksize; /* size of blocks in bytes */
@@ -50,51 +49,13 @@ The free block list is maintained as a linked list. The first four bytes of a fr
 
 ## 2. Goal
 
-You should read in the disk image, find inodes containing valid files, and write out a new image containing the same set of files, with the same inode numbers, but **with all the blocks in a file laid out contiguously**. Thus, if a file originally contains blocks `{6,2,15,22,84,7}` and it is relocated to the beginning of the data section, then the new blocks would be `{0,1,2,3,4,5}`. If there are indirect pointer blocks, the block containing the pointers need to be before the blocks being pointed to, and this applies to all level of indirect pointers.
+Read in the disk image, find inodes containing valid files, and write out a new image containing the same set of files, with the same inode numbers, but **with all the blocks in a file laid out contiguously**. Thus, if a file originally contains blocks `{6,2,15,22,84,7}` and it is relocated to the beginning of the data section, then the new blocks would be `{0,1,2,3,4,5}`. If there are indirect pointer blocks, the block containing the pointers need to be before the blocks being pointed to, and this applies to all level of indirect pointers.
 
-After defragmenting, your new disk image should contain the same boot block (just copy it), a new superblock with the same list of free inodes but a new list of free blocks sorted from lowest to highest (to prevent future fragmentation), new inodes for valid files, and data blocks at their new locations.
+After defragmenting, new disk image should contain the same boot block (just copy it), a new superblock with the same list of free inodes but a new list of free blocks sorted from lowest to highest (to prevent future fragmentation), new inodes for valid files, and data blocks at their new locations.
 
-You do not need to copy/save the contents of free blocks when you create the defragmented disk. They can be left as they are, initialized to zeros, or anything else as long as the free list itself is well constructed, i.e., it is a valid linked list.
+Do not need to copy/save the contents of free blocks when you create the defragmented disk. They can be left as they are, initialized to zeros, or anything else as long as the free list itself is well constructed, i.e., it is a valid linked list.
 
-Your program should take one parameter, i.e., the name of the disk image (e.g., `images_frag/disk_frag_1`). The output disk image should be named as "`disk_defrag`". 
-
-You will need to do binary file I/O to read in the data files. You can do this with the `fread()` C library function. Here is some sample code:
-```c
-   FILE * f;
-   unsigned char * buffer;
-   size_t bytes;
-   buffer = malloc(10*1024*1024);
-   f = fopen("disk_frag","r");
-   bytes =  fread(buffer,10*1024*1024,1,f);
-```
-Please do not use this directly, as it does no error checking. If you want to find out how big a file is from within your program, you can use the `fstat()` function. You can change the type of the buffer if you see a fit.
-
-To help you understand how to do cast in C and read the disk image, we provide the following code to show how to read the superblock:
-```c
-   superblock *pSB = (superblock*) &(buffer[512]);
-   ... pSB->blocksize ...;
-   ... pSB->inode_offset ...;
-```
-You can also use the following code:
-```c
-   superblock sb;
-   sb.blocksize = *((int *) &(buffer[512]));
-   sb.inode_offset = *((int *) &(buffer[512 + 4]));
-```
-Try to make sense of the code above, from which you should get an idea on how to read the disk image. Note the code above assuming the buffer is of the `char *` or `unsugned char *` type. If you choose to declare your buffer to something else, e.g., `int *`, you need to adjust the code above.
-
-To avoid potential compiler-induced problems in the code above, please add "`-O0`" into your compiler flags. Also please check (1) the address buffer returned by `malloc` can be divided by four and (2) `sizeof(struct superblock)` is 24 and `sizeof(struct inode)` is 100. If a violation is found, please let the instructor/TA know.
-
-A different and safer approach of reading a word from an arbitrary address is as following:
-```c
-   superblock sb;
-   int readIntAt(unsigned char *p)
-   {
-      return *(p+3) * 256 * 256 * 256 + *(p+2) * 256 * 256 + *(p+1) * 256 + *p;
-   }
-   sb.blocksize = readIntAt(buffer + 512);
-   sb.inode_offset = readIntAt(buffer + 512 + 4);
-```
+Program should take one parameter, i.e., the name of the disk image (e.g., `images_frag/disk_frag_1`). The output disk image should be named as "`disk_defrag`". 
 
 ## 3. Disk images 
 You can find two directories: `images_frag` and `images_defrag`. The `images_frag` directory contains test input images: `disk_frag_1`, `disk_frag_2`, and `disk_frag_3`. The expected outputs are in the `images_defrag` directory. That is, for an input image `disk_frag_x`, your output should be identical to `disk_defrag_x`. You can use `diff` command. 
@@ -103,108 +64,4 @@ The input images follow the following rules:
   * All unused inodes have -1 for the last four index-related pointer fields and 0 for other fields after next_inode. For inodes in use, index-related pointer fields that are not used should have values -1.
   * A data block used as an indirect pointer block will have -1 for all the unused pointers beyond file size.
   * A free data block will contain only 0 after the first four bytes for pointing to the next free data block. A data block in use will contain only 0 beyond the file size.
-  * Unused bytes in the super block and the inode region are 0. For the inode region, if the total size is 1024 bytes, then the last 24 bytes are unused bytes, as each inode is 100 bytes and the inode region can hold 10 inodes
-
-## 4. Sample `defrag.c`
-The code below is just for an example purpose. This code assumes that a separate set of files, including `disk_image.h` and `.c`, implements the actual functionalities and defines the data structures. You do not have to follow this structure. In fact, you can implement everything in a single c file. 
-```c
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-
-#include "disk_image.h"
-
-#define OUTPUT_FILE_NAME "disk_defrag"
-
-/* Disk image created from input file */
-diskImage di;
-/* Pointer to defragmented disk image */
-diskImage *defragged = NULL;
-
-int main( int argc, char *argv[ ] )
-{
-    //Open the input file
-    FILE *in;
-    char *fileName = argv[ 1 ];
-    in = fopen( fileName, "r" );
-
-    //Check for errors opening the input file
-    if ( !in )
-    {
-        //handle error: could not open file        
-    }
-
-    //Load a disk image from the input file
-    readDiskImage( in, &di );
-    fclose( in );
-
-    //Defrag the disk image
-    defragged = defragDiskImage( &di );
-
-    //Create an output file
-    FILE *out = fopen( OUTPUT_FILE_NAME, "w+" );
-
-    //Check for errors creating the output file
-    if ( !out )
-    {
-        //handle error: could not create file        
-    }
-
-    //Write defragged to an output file
-    writeDiskImage( out, defragged );
-    fclose( out );
-
-    //Cleanup
-    freeDiskImage( &di );
-    freeDiskImage( defragged );
-    free( defragged );
-}
-
-```
-
-## 5. Turn-in Instructions
-
-Turn in 1) your source code, 2) Makefile, and 3) readme.txt with instructions for compile and execution.  
-
-  * You can name your source files any names you want, but the executable generated by Makefile should be `defrag`.
-
-  * Make sure that all the necessary changes have been staged (by using `git status`).
-  
-  * Then, commit and push:
-    ```shell
-    git commit -am 'Done'
-    git push
-    ```
-    You can do commit and push whenever you want, but the final submission must be committed/pushed with the message `Done`. For a final check, go to your repository using a web browser, and check if
-    your changes have been pushed.
-
-
-
-## 6. Q & A:
-
-* Q. How to make a Makefile?
-
-  A: A very simple example:
-  ```
-  defrag: defrag.c
-        gcc -std=c11 -O0 -g -o defrag defrag.c
-  ```
-
-* Q: How to determine whether an inode is being used?
-
-  A: If its `nlink` has 0; you can also check whether it is in the free list, but this will be more complicated than checking `nlink`; since inodes not in use also have the size field as 0, you can not use it to determine whether an inode is used.
-
-* Q: Should I do the defragmentation within the original data block region?
-
-  A: You can, but you do not have to. A simpler way is you read data blocks from the old disk image and then write the data blocks, including those storing pointers, onto the new disk image.
-
-* Q: In which order should we traverse the inodes?
-
-  A: Treat the whole inode region as an array, start from index 0, and skip the ones that are free.
-
-
-## 7. Grading Policy
-
-* 40 pts for providing instructions to compile/run the program, and it is compiled successfully.
-* 60 (=20*3) pts for each disk image (in `images_frag`) -- the program needs to finish the defragmentation without any exceptions and its output should be the same as the provided image (in `images_defrag`).
+  * Unused bytes in the super block and the inode region are 0. For the inode region, if the total size is 1024 bytes, then the last 24 bytes are unused bytes, as each inode is 100 bytes and the inode region can hold 10 inodes.
